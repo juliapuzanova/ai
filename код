@@ -1,83 +1,83 @@
-import numpy
-import scipy.special
+import time
+from tensorflow import keras
+from tensorflow.keras import layers
+from tensorflow.keras import Sequential
+from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense, Dropout, Activation, BatchNormalization, AveragePooling2D
+from tensorflow.keras.optimizers import SGD, RMSprop, Adam
+import tensorflow_datasets as tfds  # pip install tensorflow-datasets
+import tensorflow as tf
+from PIL import Image
+import matplotlib.pyplot as plt
+import logging
+import numpy as np
 
-def init_net():
-    input_nodes = 784
-    print('Введите число скрытых нейронов: ')
-    hidden_nodes = int(input())
-    out_nodes = 10
-    print('Введите скорость обучения(0.5): ')
-    lern_node = float(input())
-    return input_nodes, hidden_nodes, out_nodes, lern_node
-def creat_net(input_nodes, hidden_nodes, out_nodes,):
-   
-    input_hidden_w = (numpy.random.rand(hidden_nodes, input_nodes) - 0.5)
-    hidden_out_w = (numpy.random.rand(out_nodes, hidden_nodes) - 0.5)
-    return input_hidden_w, hidden_out_w
 
-def fun_active(x):
-    return scipy.special.expit(x)
 
-def query(input_hidden_w, hidden_out_w, inputs_list):
-  
-    inputs_sig = numpy.array(inputs_list, ndmin=2).T
+def make_model(image_w: int, image_h: int):
+   # Neural network model
+   model = Sequential()#присваиваем нейроный сети вид(модель обучения)
+   model.add(Dense(784, activation='relu', input_shape=(image_w*image_h,)))
+   model.add(Dense(10, activation='softmax'))
+   model.compile(loss='categorical_crossentropy', optimizer=RMSprop(), metrics=['accuracy'])#задаем принципы обучения
+   return model
 
-    hidden_inputs = numpy.dot(input_hidden_w, inputs_sig)  
-    hidden_out = fun_active(hidden_inputs) 
-    final_inputs = numpy.dot(hidden_out_w, hidden_out)
-    final_out = fun_active(final_inputs)
 
-    return final_out
+def rms_train(model):#mnist=dataset(название набора данных)
+    (x_train, y_train), (x_test, y_test) = keras.datasets.mnist.load_data()#загружаем данные
+   # x_train: 60000x28x28 array, x_test: 10000x28x28 array
+    image_size = x_train.shape[1]
+    train_data = x_train.reshape(x_train.shape[0], image_size*image_size)
+    test_data = x_test.reshape(x_test.shape[0], image_size*image_size)
+    train_data = train_data.astype('float32')
+    test_data = test_data.astype('float32')
+    train_data /= 255.0
+    test_data /= 255.0
+   # encode the labels - we have 10 output classes
+   # 3 -> [0 0 0 1 0 0 0 0 0 0], 5 -> [0 0 0 0 0 1 0 0 0 0]
+    num_classes = 10
+    train_labels_cat = keras.utils.to_categorical(y_train, num_classes)
+    test_labels_cat = keras.utils.to_categorical(y_test, num_classes)
+    print("Обучение")
+    t_start = time.time()
+   # Start training the network
+    model=model.fit(train_data, train_labels_cat, epochs=9, batch_size=32,
+    verbose=1, validation_data=(test_data, test_labels_cat))
 
-def treyn(targget_list,input_list, input_hidden_w, hidden_out_w, lern_node):
 
-    targgets = numpy.array(targget_list, ndmin=2).T
-    inputs_sig = numpy.array(input_list, ndmin=2).T
-    hidden_inputs = numpy.dot(input_hidden_w, inputs_sig)
-    hidden_out = fun_active(hidden_inputs)
-    final_inputs = numpy.dot(hidden_out_w, hidden_out)
-    final_out = fun_active(final_inputs)
-    
-    out_errors = targgets - final_out
+    accu_values = model.history['accuracy']
+    epochs = range(1, len(accu_values) + 1)
+    plt.plot(epochs, accu_values, label='Метрика качества')
+    plt.xlabel('Epochs')
+    plt.ylabel('accuracy')
+    plt.legend()
+    plt.show()
 
-    hidden_errors = numpy.dot(hidden_out_w.T, out_errors)
-   
-    hidden_out_w += lern_node * numpy.dot((out_errors * final_out * (1 - final_out)), numpy.transpose(hidden_out))
-    input_hidden_w += lern_node * numpy.dot((hidden_errors * hidden_out * (1 - hidden_out)),numpy.transpose(inputs_sig))
-    return hidden_out_w, input_hidden_w
+    accu_values = model.history['loss']
+    epochs = range(1, len(accu_values) + 1)
+    plt.plot(epochs, accu_values, label='Функция потерь')
+    plt.xlabel('Epochs')
+    plt.ylabel('loss')
+    plt.legend()
+    plt.show()
 
-def test_set(hidden_out_w, input_hidden_w):
-    data_file = open('mnist_train.csv', 'r')
-    trening_list = data_file.readlines()
-    data_file.close()
+def rms_digits_predict(model, image_file):
+    image_size = 28
+    img = keras.preprocessing.image.load_img(image_file, target_size=(image_size, image_size), color_mode='grayscale')
+    img_arr = np.expand_dims(img, axis=0)
+    img_arr = 1 - img_arr/255.0
+    img_arr = img_arr.reshape((1, image_size*image_size))
+    result = model.predict_classes([img_arr])
+    return result[0]
+    tf.logging.set_verbosity(tf.logging.ERROR)
+    tf.get_logger().setLevel(logging.ERROR)
 
-    for record in trening_list:
-        all_values = record.split(',')
-      
-        inputs = (numpy.asfarray(all_values[1:]) / 255.0 * 0.99) + 0.01
+model = make_model(image_w=28, image_h=28)
+rms_train(model)
 
-        targets = numpy.zeros(10) + 0.01
-        targets[int(all_values[0])] = 0.99
-        hidden_out_w, input_hidden_w = treyn(targets, inputs, input_hidden_w, hidden_out_w, lern_node)
 
-    data_file = open('mnist_test.csv', 'r')
-    test_list = data_file.readlines()
-    data_file.close()
-    test = []
-    for record in test_list:
-        all_values = record.split(',')
-        inputs = (numpy.asfarray(all_values[1:]) / 255.0 * 0.99) + 0.01
-        out_session = query(input_hidden_w, hidden_out_w, inputs)
-        if int(all_values[0]) == numpy.argmax(out_session):
-            test.append(1)
-        else:
-            test.append(0)
-    print(len(test))
-    test = numpy.asarray(test)
-    print('Эфективность сети % =', (test.sum() / test.size) * 100)
-    return hidden_out_w, input_hidden_w
-input_nodes, hidden_nodes, out_nodes, lern_node = init_net()
-input_hidden_w, hidden_out_w = creat_net(input_nodes, hidden_nodes, out_nodes)
-for i in range (5):
-    print('Test #', i+1)
-    hidden_out_w, input_hidden_w = test_set(hidden_out_w, input_hidden_w)
+model.save('digits_28x28.h5')
+model = tf.keras.models.load_model('digits_28x28.h5')
+
+print(rms_digits_predict(model, '4.jpg'))
+print(rms_digits_predict(model, '8.png'))
+print(rms_digits_predict(model, '2.png'))
