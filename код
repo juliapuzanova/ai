@@ -45,16 +45,18 @@ def rms_train(model):#mnist=dataset(название набора данных)
 
 
     accu_values = model.history['accuracy']
+    accu_val_values=model.history['val_accuracy']
     epochs = range(1, len(accu_values) + 1)
-    plt.plot(epochs, accu_values, label='Метрика качества')
+    plt.plot(epochs, accu_values,accu_val_values, label='Метрика качества')
     plt.xlabel('Epochs')
     plt.ylabel('accuracy')
     plt.legend()
     plt.show()
 
     accu_values = model.history['loss']
+    accu_val_values = model.history['val_loss']
     epochs = range(1, len(accu_values) + 1)
-    plt.plot(epochs, accu_values, label='Функция потерь')
+    plt.plot(epochs, accu_values,accu_val_values, label='Функция потерь')
     plt.xlabel('Epochs')
     plt.ylabel('loss')
     plt.legend()
