@@ -78,6 +78,6 @@ rms_train(model)
 model.save('digits_28x28.h5')
 model = tf.keras.models.load_model('digits_28x28.h5')
 
-print(rms_digits_predict(model, '4.jpg'))
+print(rms_digits_predict(model, '4.png'))
 print(rms_digits_predict(model, '8.png'))
 print(rms_digits_predict(model, '2.png'))
